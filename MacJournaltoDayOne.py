@@ -60,39 +60,59 @@ def main(argv=None):
 	continueLoop = True
 	entryDone = False
 	curEntryDate = None
+	prevEntry = ''
+	curEntry = ''
 
-	###Fencepost problem - you are picking up, but not writing out, the final entry
+	#Due to python's lack of a DO/UNTIL statement, have to do things a bit differently
+	
+	while continueLoop is True:
+	
+		entryLine = journal.readline()
+	
+		if not entryLine: #Reached EOF
+			entryDone = True
+			continueLoop = False
+			prevEntryDate = curEntryDate
+			prevEntry = curEntry
+			prevEntryLines = curEntryLines
+			curEntry = ''
+			curEntryLines = 0
 
-	for line in journal:
-		if line.startswith("\tDate:	"):
-			if ((entrydate is not None) and (journalEntry is not None)): #There's an entry and an associated date
-				#Add entry to DayOne
-				print(entrydate + " has " + repr(entryLines) + " lines")
-				entrydate = None
-			elif ((entrydate is not None) and (journalEntry is None)): #We have an entry date with no associated entry
-				return 2
-			elif ((entrydate is None) and (journalEntry is not None)): #We have an entry but not associated date
-				return 3
+			print("Reached EOF")
+	
+		if entryLine.startswith("\tDate:\t"): # An entry is finished
+			prevEntryDate = curEntryDate
+			prevEntry = curEntry
+			prevEntryLines = curEntryLines
+			curEntry = ''
+			curEntryLines = 0
+			curEntryDate = entryLine.replace("\tDate:\t",'').rstrip()
+			entryDone = True
+			print("Found entry " + curEntryDate)
+		elif entryLine is not "":
+			curEntry += entryLine
+			curEntryLines += 1
 
-			entries +=1
-			entrydate = line.replace("\tDate:\t",'')
-			journalEntry = None
-			entryLines = 0
+		if (entryDone is True) and (prevEntryLines is not 0):
+			#Write output to DayOne
+			print '{0} has {1} lines'.format(prevEntryDate,repr(prevEntryLines))
+			addCommandParsed = ['/Applications/Day One.app/Contents/MacOS/dayone', '-d="' + format(prevEntryDate) +'"', 'new']
+			print addCommandParsed
+			try:
+				addCommandProcess = subprocess.Popen(addCommandParsed,stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+			except:
+				None
+			addCommandOut = addCommandProcess.communicate(prevEntry)
+			print addCommandOut[0]
+			print addCommandOut[1]
+			numEntries += 1
+			entryDone = False
+			prevEntryDate = None
+			prevEntry = None
+			prevEntryLines = 0
 
-		else:
-			if entrydate is not None:
-				print("Reading entry")
-			
-				if journalEntry is not None:
-					journalEntry = journalEntry  + line
-					entryLines += 1
-					print("Not first line")
-				else:
-					journalEntry = line
-					entryLines = 1
-					print("First line")
 
-	print("Found %s entries" % entries)
+	print("Found %s entries" % numEntries)
 	
 	journal.close()
 	
